@@ -45,7 +45,7 @@
  @param image The newly cropped image.
  @param cropRect A rectangle indicating the crop region of the image the user chose (In the original image's local co-ordinate space)
  */
-- (void)cropViewController:(TOCropViewController *)cropViewController didCropToImage:(UIImage *)image withRect:(CGRect)cropRect angle:(NSInteger)angle;
+- (void)cropViewController:(TOCropViewController *)cropViewController didCropToImage:(NSArray *)image withRect:(CGRect)cropRect angle:(NSInteger)angle;
 
 /**
  If implemented, when the user hits cancel, or completes a UIActivityViewController operation, this delegate will be called,
@@ -57,6 +57,8 @@
 @end
 
 @interface TOCropViewController : UIViewController
+
+@property (nonatomic,strong) NSMutableArray *selectedAsset;
 
 /**
  The original, uncropped image that was passed to this controller.
@@ -78,8 +80,8 @@
  */
 @property (nonatomic, copy) void (^prepareForTransitionHandler)(void);
 
-/** 
- If `showActivitySheetOnDone` is true, then these activity items will be supplied to that UIActivityViewController 
+/**
+ If `showActivitySheetOnDone` is true, then these activity items will be supplied to that UIActivityViewController
  in addition to the `TOActivityCroppedImageProvider` object.
  */
 @property (nonatomic, strong) NSArray *activityItems;

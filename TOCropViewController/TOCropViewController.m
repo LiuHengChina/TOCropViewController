@@ -27,7 +27,8 @@
 #import "TOActivityCroppedImageProvider.h"
 #import "UIImage+CropRotate.h"
 #import "TOCroppedImageAttributes.h"
-
+#import <AssetsLibrary/AssetsLibrary.h>
+static NSUInteger IGindex = 0;
 typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
     TOCropViewControllerAspectRatioOriginal,
     TOCropViewControllerAspectRatioSquare,
@@ -46,12 +47,8 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
 @property (nonatomic, strong) TOCropView *cropView;
 @property (nonatomic, strong) UIView *snapshotView;
 @property (nonatomic, strong) TOCropViewControllerTransitioning *transitionController;
-@property (nonatomic, assign) BOOL inTransition;
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 @property (nonatomic, strong) UIPopoverController *activityPopoverController;
-#pragma clang diagnostic pop
+@property (nonatomic, assign) BOOL inTransition;
 
 /* Button callback */
 - (void)cancelButtonTapped;
@@ -84,7 +81,11 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-
+    
+    if (self.cropView) {[self.cropView removeFromSuperview];}
+    if (self.toolbar) {[self.toolbar removeFromSuperview];}
+    UIImage *iamge = [UIImage imageWithCGImage:[[self.selectedAsset[IGindex] defaultRepresentation] fullResolutionImage]];
+    _image = iamge;
     BOOL landscapeLayout = CGRectGetWidth(self.view.frame) > CGRectGetHeight(self.view.frame);
     self.cropView = [[TOCropView alloc] initWithImage:self.image];
     self.cropView.frame = (CGRect){(landscapeLayout ? 44.0f : 0.0f),0,(CGRectGetWidth(self.view.bounds) - (landscapeLayout ? 44.0f : 0.0f)), (CGRectGetHeight(self.view.bounds)-(landscapeLayout ? 0.0f : 44.0f)) };
@@ -213,7 +214,7 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
         self.snapshotView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleRightMargin;
     
     [self.view addSubview:self.snapshotView];
-
+    
     self.toolbar.frame = [self frameForToolBarWithVerticalLayout:UIInterfaceOrientationIsLandscape(toInterfaceOrientation)];
     [self.toolbar layoutIfNeeded];
     
@@ -259,9 +260,6 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
         return;
     }
     
-    //TODO: Completely overhaul this once iOS 7 support is dropped
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     BOOL verticalCropBox = self.cropView.cropBoxAspectRatioIsPortrait;
     UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:nil
                                                              delegate:self
@@ -271,25 +269,24 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
                                                                                                          nil)
                                                destructiveButtonTitle:nil
                                                     otherButtonTitles:NSLocalizedStringFromTableInBundle(@"Original",
-                                                                                                          @"TOCropViewControllerLocalizable",
-                                                                                                          [NSBundle bundleForClass:[self class]],
-                                                                                                          nil),
-                                                                      NSLocalizedStringFromTableInBundle(@"Square",
                                                                                                          @"TOCropViewControllerLocalizable",
                                                                                                          [NSBundle bundleForClass:[self class]],
                                                                                                          nil),
-                                                                      verticalCropBox ? @"2:3" : @"3:2",
-                                                                      verticalCropBox ? @"3:5" : @"5:3",
-                                                                      verticalCropBox ? @"3:4" : @"4:3",
-                                                                      verticalCropBox ? @"4:5" : @"5:4",
-                                                                      verticalCropBox ? @"5:7" : @"7:5",
-                                                                      verticalCropBox ? @"9:16" : @"16:9",nil];
+                                  NSLocalizedStringFromTableInBundle(@"Square",
+                                                                     @"TOCropViewControllerLocalizable",
+                                                                     [NSBundle bundleForClass:[self class]],
+                                                                     nil),
+                                  verticalCropBox ? @"2:3" : @"3:2",
+                                  verticalCropBox ? @"3:5" : @"5:3",
+                                  verticalCropBox ? @"3:4" : @"4:3",
+                                  verticalCropBox ? @"4:5" : @"5:4",
+                                  verticalCropBox ? @"5:7" : @"7:5",
+                                  verticalCropBox ? @"9:16" : @"16:9",nil];
     
     if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
         [actionSheet showFromRect:self.toolbar.clampButtonFrame inView:self.toolbar animated:YES];
     else
         [actionSheet showInView:self.view];
-#pragma clang diagnostic pop
 }
 
 - (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex
@@ -356,7 +353,7 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
 {
     self.transitionController.image = self.image;
     self.transitionController.fromFrame = frame;
-
+    
     __weak typeof (self) weakSelf = self;
     [viewController presentViewController:self animated:YES completion:^ {
         typeof (self) strongSelf = weakSelf;
@@ -376,7 +373,7 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
     self.transitionController.image = image;
     self.transitionController.fromFrame = [self.cropView convertRect:self.cropView.cropBoxFrame toView:self.view];
     self.transitionController.toFrame = frame;
-
+    
     [viewController dismissViewControllerAnimated:YES completion:^ {
         if (completion) {
             completion();
@@ -450,7 +447,7 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
 {
     CGRect cropFrame = self.cropView.croppedImageFrame;
     NSInteger angle = self.cropView.angle;
-
+    
     //If desired, when the user taps done, show an activity sheet
     if (self.showActivitySheetOnDone) {
         TOActivityCroppedImageProvider *imageItem = [[TOActivityCroppedImageProvider alloc] initWithImage:self.image cropFrame:cropFrame angle:angle];
@@ -463,27 +460,17 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
         UIActivityViewController *activityController = [[UIActivityViewController alloc] initWithActivityItems:activityItems applicationActivities:self.applicationActivities];
         activityController.excludedActivityTypes = self.excludedActivityTypes;
         
-        if (NSClassFromString(@"UIPopoverPresentationController")) {
-            activityController.modalPresentationStyle = UIModalPresentationPopover;
-            activityController.popoverPresentationController.sourceView = self.toolbar;
-            activityController.popoverPresentationController.sourceRect = self.toolbar.doneButtonFrame;
+        if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone) {
             [self presentViewController:activityController animated:YES completion:nil];
         }
         else {
-            if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone) {
-                [self presentViewController:activityController animated:YES completion:nil];
-            }
-            else {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-                [self.activityPopoverController dismissPopoverAnimated:NO];
-                self.activityPopoverController = [[UIPopoverController alloc] initWithContentViewController:activityController];
-                [self.activityPopoverController presentPopoverFromRect:self.toolbar.doneButtonFrame inView:self.toolbar permittedArrowDirections:UIPopoverArrowDirectionAny animated:YES];
-#pragma clang diagnostic pop
-            }
+            [self.activityPopoverController dismissPopoverAnimated:NO];
+            self.activityPopoverController = [[UIPopoverController alloc] initWithContentViewController:activityController];
+            [self.activityPopoverController presentPopoverFromRect:self.toolbar.doneButtonFrame inView:self.toolbar permittedArrowDirections:UIPopoverArrowDirectionAny animated:YES];
         }
+        
         __weak typeof(activityController) blockController = activityController;
-        #if __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_8_0
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_8_0
         activityController.completionWithItemsHandler = ^(NSString *activityType, BOOL completed, NSArray *returnedItems, NSError *activityError) {
             if (!completed)
                 return;
@@ -496,7 +483,7 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
                 blockController.completionWithItemsHandler = nil;
             }
         };
-        #else
+#else
         activityController.completionHandler = ^(NSString *activityType, BOOL completed) {
             if (!completed)
                 return;
@@ -509,7 +496,7 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
                 blockController.completionHandler = nil;
             }
         };
-        #endif
+#endif
         
         return;
     }
@@ -520,18 +507,29 @@ typedef NS_ENUM(NSInteger, TOCropViewControllerAspectRatio) {
     }
     //If the delegate that requires the specific cropped image is provided, call it
     else if ([self.delegate respondsToSelector:@selector(cropViewController:didCropToImage:withRect:angle:)]) {
-        UIImage *image = nil;
-        if (angle == 0 && CGRectEqualToRect(cropFrame, (CGRect){CGPointZero, self.image.size})) {
-            image = self.image;
+        //        UIImage *image = nil;
+        //        if (angle == 0 && CGRectEqualToRect(cropFrame, (CGRect){CGPointZero, self.image.size})) {
+        //            image = self.image;
+        //        }
+        //        else {
+        //            image = [self.image croppedImageWithFrame:cropFrame angle:angle];
+        //        }
+        //
+        //        //dispatch on the next run-loop so the animation isn't interuppted by the crop operation
+        //        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.03f * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        //            [self.delegate cropViewController:self didCropToImage:image withRect:cropFrame angle:angle];
+        //        });
+        [self.selectedAsset replaceObjectAtIndex:IGindex withObject:[self.image croppedImageWithFrame:cropFrame angle:angle]];
+        IGindex++;
+        if (IGindex <= self.selectedAsset.count -1) {
+            [self viewDidLoad];
+        } else {
+            IGindex = 0;
+            [self.presentingViewController dismissViewControllerAnimated:YES completion:nil];
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.03f * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [self.delegate cropViewController:self didCropToImage:self.selectedAsset withRect:cropFrame angle:angle];
+            });
         }
-        else {
-            image = [self.image croppedImageWithFrame:cropFrame angle:angle];
-        }
-        
-        //dispatch on the next run-loop so the animation isn't interuppted by the crop operation
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.03f * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [self.delegate cropViewController:self didCropToImage:image withRect:cropFrame angle:angle];
-        });
     }
     else {
         [self.presentingViewController dismissViewControllerAnimated:YES completion:nil];
